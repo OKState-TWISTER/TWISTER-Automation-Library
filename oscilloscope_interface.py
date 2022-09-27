@@ -8,7 +8,6 @@ https://www.keysight.com/zz/en/lib/software-detail/computer-software/io-librarie
 
 import atexit
 import struct
-import sys
 
 import pyvisa
 
@@ -171,5 +170,6 @@ class Oscilloscope:
                     "ERROR: :SYSTem:ERRor? STRing returned nothing, command: '%s'"
                     % command
                 )
-                print("Exited because of error.")
-                sys.exit(1)
+                if exit_on_error:
+                    print("Exited because of error.")
+                    exit()
