@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "twister-automation"
+version = "0.1.0"
+description = "My package description"
+readme = "README.md"
+
+[urls]
+site = "https://twister.okstate.edu/facilities/404-using-the-twister-instrument"
+
+requires-python = ">=3.7"
+dependencies = [
+    "pyvisa"
+]
