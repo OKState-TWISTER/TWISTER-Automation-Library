@@ -6,6 +6,7 @@ import atexit
 
 import pyvisa
 
+
 class SignalGenerator:
     def __init__(self, device_no=None, visa_address=None, *,
                 visa_library="C:\\WINDOWS\\system32\\visa64.dll", debug=False):
@@ -16,9 +17,9 @@ class SignalGenerator:
             if device_no:
                 # These are the VISA addresses of the two signal generators we have at time of writing
                 if device_no == 1:
-                    visa_address = "TCPIP0::A-E8257D-1::INSTR"
+                    visa_address = "TCPIP0::10.10.10.21::inst0::INSTR"
                 elif device_no == 2:
-                    visa_address = "TCPIP0::A-E8257D-2::INSTR"
+                    visa_address = "TCPIP0::10.10.10.22::inst0::INSTR"
                 else:
                     raise ValueError("Valid device_no: 1, 2")
 
