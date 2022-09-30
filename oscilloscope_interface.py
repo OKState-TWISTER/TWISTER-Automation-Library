@@ -19,7 +19,12 @@ class Oscilloscope:
         atexit.register(self.shutdown)
 
         rm = pyvisa.ResourceManager(visa_library)
-        self.infiniium = rm.open_resource(visa_address)
+        try:
+            self.psg = rm.open_resource(visa_address)
+        except pyvisa.errors.VisaIOError as e:
+            print(f"Error connecting to device string '{visa_address}'. Is the device connected?")
+            raise e
+        
         self.infiniium.timeout = 20000
         self.infiniium.clear()
         # Clear status.

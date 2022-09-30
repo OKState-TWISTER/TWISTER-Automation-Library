@@ -4,28 +4,25 @@ frequently with the TWISTER equipment
 """
 
 from oscilloscope_interface import Oscilloscope
-#from 
+from waveformgen_interface import WaveformGenerator
 from signalgen_interface import SignalGenerator
 
 class Utils:
     def __init__(self, *, debug=False, 
-                oscilloscope_controller, waveformgen_controller, 
-                signalgen_controller1, signalgen_controller2):
+                oscilloscope_controller: Oscilloscope, 
+                waveformgen_controller: WaveformGenerator, 
+                signalgen_controller1: SignalGenerator, 
+                signalgen_controller2: SignalGenerator):
         # I don't know the correct way to do this in python
 
         if not isinstance(oscilloscope_controller, Oscilloscope):
             raise TypeError
-
+        if not isinstance(waveformgen_controller, WaveformGenerator):
+            raise TypeError
         if not isinstance(signalgen_controller1, SignalGenerator):
             raise TypeError
         if not isinstance(signalgen_controller2, SignalGenerator):
             raise TypeError
-
-        # type hinting aids in development but is ignored at runtime
-        self.scope: Oscilloscope
-        self.awg: None
-        self.psg1: SignalGenerator
-        self.psg2: SignalGenerator
 
         self.scope = oscilloscope_controller
         self.awg = waveformgen_controller
