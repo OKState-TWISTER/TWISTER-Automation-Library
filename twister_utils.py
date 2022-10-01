@@ -3,6 +3,8 @@ This module provides functions to automate many processes that are performed
 frequently with the TWISTER equipment
 """
 
+import math
+
 from oscilloscope_interface import Oscilloscope
 from waveformgen_interface import WaveformGenerator
 from signalgen_interface import SignalGenerator
@@ -34,16 +36,37 @@ class Utils:
     # Automatically adjusts the phase on one of the local oscillators 
     # until the received signal is maximized
     def peak_phase(self):
-        pass
+        diff_step = math.pi/8
+        
         # oscilloscope:
             # save current oscilloscope settings
             # change to a predefined view with an fft peak measurement
         # awg:
             # save current awg settings
             # set output to sinewave (IF should be near the testing IF i think (take as parameter?))
-        # adjust phase on psg1 slightly
-        # measure peak with averages on scope
-        ## implement algorithm for finding peak
+        
+        # assume psg1 phase was originally set to 0 (set it to 0 if not)
+        # measure received power
+        p1 = None
+
+        # adjust psg1 phase + pi/8 rad
+        # measure new received power
+        p2 = None
+
+        dP = (p2 - p1) / diff_step
+        p0 = (p1 + p2) / 2
+        phase0 = diff_step / 2
+
+        ephase = math.acos(dP)
+        shift1 = 3*math.pi/2 - ephase
+        shift2 = math.pi/2 - ephase
+
+        # adjust psg1 phase to phase0 + shift1
+        # measure power
+        # if power < p0,
+        ## adjust psg1 phase to phase0 + shift2
+        ## measure power
+
 
         # return oscilloscope to original view
         # set awg to original settings
