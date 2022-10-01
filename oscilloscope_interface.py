@@ -20,7 +20,7 @@ class Oscilloscope:
 
         rm = pyvisa.ResourceManager(visa_library)
         try:
-            self.psg = rm.open_resource(visa_address)
+            self.infiniium = rm.open_resource(visa_address)
         except pyvisa.errors.VisaIOError as e:
             print(f"Error connecting to device string '{visa_address}'. Is the device connected?")
             raise e
