@@ -15,8 +15,8 @@ class Utils:
                 waveformgen_controller: WaveformGenerator, 
                 signalgen_controller1: SignalGenerator, 
                 signalgen_controller2: SignalGenerator):
-        # I don't know the correct way to do this in python
 
+        # I don't know the correct way to do this in python
         if not isinstance(oscilloscope_controller, Oscilloscope):
             raise TypeError
         if not isinstance(waveformgen_controller, WaveformGenerator):
@@ -35,8 +35,12 @@ class Utils:
 
     # Automatically adjusts the phase on one of the local oscillators 
     # until the received signal is maximized
-    def peak_phase(self):
-        diff_step = math.pi/8
+    def peak_phase(self, psg_to_adjust=1, diff_step=math.pi/8):
+        try:
+            psg = [self.psg1, self.psg2][psg_to_adjust - 1]
+        except IndexError:
+            raise IndexError("Valid indices for Analog Signal Generator device: [1, 2]")
+        
         
         # oscilloscope:
             # save current oscilloscope settings
@@ -45,11 +49,12 @@ class Utils:
             # save current awg settings
             # set output to sinewave (IF should be near the testing IF i think (take as parameter?))
         
-        # assume psg1 phase was originally set to 0 (set it to 0 if not)
+        # assume psg1 phase was originally set to 0 (set it to 0 if not: psg.set_ref_phase())
         # measure received power
         p1 = None
 
-        # adjust psg1 phase + pi/8 rad
+        # adjust psg1 phase + diff step
+        psg.phase(diff_step)
         # measure new received power
         p2 = None
 
