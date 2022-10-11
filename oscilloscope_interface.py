@@ -73,10 +73,9 @@ class Oscilloscope:
             print(f"Edge trigger slope set to: {self.do_query(':TRIGger:EDGE:SLOPe?')}")
 
         # Set trigger source
-        new_chan = (":TRIG:EDGE:SOUR CHAN" + str(channel))
-        self.do_command(new_chan)
+        self.do_command(f":TRIG:EDGE:SOUR CHAN{channel}")
         if self.debug:
-            print(f"Trigger Source Changed to channel: {channel}")
+            print(f"Trigger Source Changed to channel: {self.do_query(':TRIGger:EDGE:SOURce?')}")
 
 
     def get_waveform_bytes(self):
