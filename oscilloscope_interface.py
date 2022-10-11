@@ -45,31 +45,50 @@ class Oscilloscope:
         self.infiniium.close()
 
 
-    def get_fft_peak(self):
-        power = self.do_query(":FUNCtion2:FFT:PEAK:MAGNitude?").strip().replace('"', "")
+    def get_sample_rate(self):
+        xinc = self.do_query(":WAVeform:XINCrement?")
+        samp_rate = 1 / float(xinc)
+        if self.debug:
+            print(f"X increment: '{xinc}'\nSample rate: '{samp_rate}'")
+        return samp_rate
+
+
+    def get_fft_peak(self, function):
+        power = self.do_query(f":FUNCtion{function}:FFT:PEAK:MAGNitude?").strip().replace('"', "")
         if "9.99999E+37" in power:
             power = "-9999"
         return float(power)
 
 
-    def get_sample_rate(self):
-        xinc = self.do_query(":WAVeform:XINCrement?")
-        samp_rate = 1 / float(xinc)
-
+    # Sets trigger to rising edge on channel <channel>
+    def set_trigger_source(self, channel):
+        # Set trigger more to edge triggered
+        self.do_command(":TRIG:MODE EDGE")
         if self.debug:
-            print(f"Xinc: '{xinc}'\nSample rate: '{samp_rate}'")
+            print(f"Trigger Mode Changed to: {self.do_query(':TRIG:MODE?')}")
 
-        return samp_rate
+        # Set edge triggering on rising edge
+        self.do_command(":TRIG:EDGE:SLOP POS")
+        if self.debug:
+            print(f"Edge trigger slope set to: {self.do_query(':TRIGger:EDGE:SLOPe?')}")
+
+        # Set trigger source
+        new_chan = (":TRIG:EDGE:SOUR CHAN" + str(channel))
+        self.do_command(new_chan)
+        if self.debug:
+            print(f"Trigger Source Changed to channel: {channel}")
 
 
     def get_waveform_bytes(self):
         # Get the number of waveform points.
         qresult = self.do_query(":WAVeform:POINts?")
-        print("Waveform points: %s" % qresult)
+        if self.debug:
+            print(f"Waveform points: {qresult}")
 
         # Choose the format of the data returned:
         self.do_command(":WAVeform:FORMat BYTE")
-        print("Waveform format: %s" % self.do_query(":WAVeform:FORMat?"))
+        if self.debug:
+            print(f"Waveform format: {self.do_query(':WAVeform:FORMat?')}")
 
         # Get the waveform data.
         self.do_command(":DIGitize CHANnel1")
@@ -77,24 +96,28 @@ class Oscilloscope:
 
         # Unpack signed byte data.
         values = struct.unpack("%db" % len(sData), sData)
-        print("Number of data values: %d" % len(values))
+        if self.debug:
+            print(f"Number of data values: {len(values)}")
         return values
 
 
     def get_waveform_words(self):
         # Get the number of waveform points.
         qresult = self.do_query(":WAVeform:POINts?")
-        print("Waveform points: %s" % qresult)
+        if self.debug:
+            print(f"Waveform points: {qresult}")
 
         # Choose the format of the data returned:
         self.do_command(":WAVeform:FORMat WORD")
-        print("Waveform format: %s" % self.do_query(":WAVeform:FORMat?"))
+        if self.debug:
+            print(f"Waveform format: {self.do_query(':WAVeform:FORMat?')}")
 
         # Get the waveform data.
         self.do_command(":DIGitize CHANnel1")
         sData = self.do_query_ieee_block(":WAVeform:DATA?")
 
-        print(f"length: {len(sData)}")
+        if self.debug:
+            print(f"length: {len(sData)}")
 
         # Unpack signed byte data.
         # values = struct.unpack("%db" % (len(sData)/1), sData)
@@ -102,7 +125,8 @@ class Oscilloscope:
         for m, l in zip(sData[0::2], sData[1::2]):
             values.append(int.from_bytes([m, l], byteorder="big", signed=True))
 
-        print("Number of data values: %d" % len(values))
+        if self.debug:
+            print(f"Number of data values: {len(values)}")
 
         return values
 
@@ -110,11 +134,13 @@ class Oscilloscope:
     def get_waveform_ascii(self):
         # Get the number of waveform points.
         qresult = self.do_query(":WAVeform:POINts?")
-        print("Waveform points: %s" % qresult)
+        if self.debug:
+            print(f"Waveform points: {qresult}")
 
         # Choose the format of the data returned:
         self.do_command(":WAVeform:FORMat ASCii")
-        print("Waveform format: %s" % self.do_query(":WAVeform:FORMat?"))
+        if self.debug:
+            print(f"Waveform format: {self.do_query(':WAVeform:FORMat?')}")
 
         # Get the waveform data.
         self.do_command(":DIGitize CHANnel1")
@@ -128,11 +154,12 @@ class Oscilloscope:
         if hide_params:
             (header, data) = command.split(" ", 1)
             if self.debug:
-                print("\nCmd = '%s'" % header)
+                print(f"\nCmd = '{header}'")
         else:
             if self.debug:
-                print("\nCmd = '%s'" % command)
+                print(f"\nCmd = '{command}'")
 
+        # inherent string casting? is this necessary?
         self.infiniium.write("%s" % command)
 
         if hide_params:
@@ -143,7 +170,7 @@ class Oscilloscope:
 
     def do_query(self, query):
         if self.debug:
-            print("Qys = '%s'" % query)
+            print(f"Qys = '{query}'")
         result = self.infiniium.query("%s" % query)
         self.check_instrument_errors(query)
         return result
@@ -151,10 +178,8 @@ class Oscilloscope:
 
     def do_query_ieee_block(self, query):
         if self.debug:
-            print("Qyb = '%s'" % query)
-        result = self.infiniium.query_binary_values(
-            "%s" % query, datatype="s", container=bytes
-        )
+            print(f"Qyb = '{query}'")
+        result = self.infiniium.query_binary_values("%s" % query, datatype="s", container=bytes)
         self.check_instrument_errors(query, exit_on_error=False)
         return result
 
@@ -164,17 +189,14 @@ class Oscilloscope:
             error_string = self.infiniium.query(":SYSTem:ERRor? STRing")
             if error_string:  # If there is an error string value.
                 if error_string.find("0,", 0, 2) == -1:  # Not "No error".
-                    print("ERROR: %s, command: '%s'" % (error_string, command))
+                    print(f"ERROR: {error_string}, command: '{command}'")
                     if exit_on_error:
                         print("Exited because of error.")
                         exit()
                 else:  # "No error"
                     break
             else:  # :SYSTem:ERRor? STRing should always return string.
-                print(
-                    "ERROR: :SYSTem:ERRor? STRing returned nothing, command: '%s'"
-                    % command
-                )
+                print(f"ERROR: :SYSTem:ERRor? STRing returned nothing, command: '{command}'")
                 if exit_on_error:
                     print("Exited because of error.")
                     exit()
