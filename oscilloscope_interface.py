@@ -110,27 +110,28 @@ class Oscilloscope:
         return values
 
 
-    def get_waveform_words(self):
-        # Get the number of waveform points.
-        qresult = self.do_query(":WAVeform:POINts?")
-        if self.debug:
-            print(f"Waveform points: {qresult}")
-
+    #TODO: make channel argument optional so it doesn't have to specified every time
+    # EX: curr_channel = query(get waveform source)
+    #     digitize(curr_channel)
+    def get_waveform_words(self, channel):
         # Choose the format of the data returned:
         self.do_command(":WAVeform:FORMat WORD")
         if self.debug:
             print(f"Waveform format: {self.do_query(':WAVeform:FORMat?')}")
+            print(f"Waveform points: {self.do_query(':WAVeform:POINts?')}")
 
         # Get the waveform data.
         # TODO: change this channel to whatever waveform source is
-        self.do_command(":DIGitize CHANnel1")
+        self.do_command(f":DIGitize CHANnel{channel}")
         sData = self.do_query_ieee_block(":WAVeform:DATA?")
 
         if self.debug:
-            print(f"length: {len(sData)}")
+            print(f"Block data length: {len(sData)}")
 
         # Unpack signed byte data.
         # values = struct.unpack("%db" % (len(sData)/1), sData)
+
+        # this can probably be made more efficient
         values = []
         for m, l in zip(sData[0::2], sData[1::2]):
             values.append(int.from_bytes([m, l], byteorder="big", signed=True))
