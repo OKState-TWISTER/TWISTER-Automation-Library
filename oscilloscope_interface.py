@@ -14,9 +14,12 @@ import pyvisa
 
 class Oscilloscope:
     def __init__(self, visa_address="USB0::0x2A8D::0x9027::MY59190106::0::INSTR", *, 
-                visa_library="C:\\WINDOWS\\system32\\visa64.dll", debug=False, channel=1):
+                visa_library="C:\\WINDOWS\\system32\\visa64.dll", debug=False):
         self.debug = debug
         atexit.register(self.shutdown)
+
+        if self.debug:
+            print(f"Initializing Oscilloscope @ {visa_address}")
 
         rm = pyvisa.ResourceManager(visa_library)
         try:
@@ -24,21 +27,17 @@ class Oscilloscope:
         except pyvisa.errors.VisaIOError as e:
             print(f"Error connecting to device string '{visa_address}'. Is the device connected?")
             raise e
+
+        if self.debug:
+            idn_string = self.do_query("*IDN?").strip()
+            print(f"Connected to Oscilloscope: '{idn_string}'")
         
         self.infiniium.timeout = 20000
         self.infiniium.clear()
         # Clear status.
         self.do_command("*CLS")
-        idn_string = self.do_query("*IDN?")
-        print("Identification string: '%s'" % idn_string)
-
-        # Set waveform capture settings
+        
         self.do_command(":SYSTem:HEADer OFF")
-        self.do_command(f":WAVeform:SOURce CHANnel{channel}")
-        self.do_command(":WAVeform:STReaming OFF")
-        # self.do_command(":ACQuire:MODE HRESolution")  # this may slow data acquisition down considerably
-        self.do_command(":ACQuire:COMPlete 100")  # take a full measurement
-        # self.do_command(":ACQuire:POINts 1000") # dont set points, let the scope capture between two triggers
 
 
     def shutdown(self):
@@ -58,6 +57,16 @@ class Oscilloscope:
         if "9.99999E+37" in power:
             power = "-9999"
         return float(power)
+
+    
+    # Set the channel that will be used as the source for get_waveform functions
+    def set_waveform_source(self, channel):
+        self.do_command(":WAVeform:STReaming OFF")
+        self.do_command(":ACQuire:COMPlete 100")  # take a full measurement
+
+        self.do_command(f":WAVeform:SOURce CHANnel{channel}")
+        if self.debug:
+            print(f"Set waveform source to channel: {self.do_query(':WAVeform:SOURce?')}")
 
 
     # Sets trigger to rising edge on channel <channel>
@@ -90,6 +99,7 @@ class Oscilloscope:
             print(f"Waveform format: {self.do_query(':WAVeform:FORMat?')}")
 
         # Get the waveform data.
+        # TODO: change this channel to whatever waveform source is
         self.do_command(":DIGitize CHANnel1")
         sData = self.do_query_ieee_block(":WAVeform:DATA?")
 
@@ -112,6 +122,7 @@ class Oscilloscope:
             print(f"Waveform format: {self.do_query(':WAVeform:FORMat?')}")
 
         # Get the waveform data.
+        # TODO: change this channel to whatever waveform source is
         self.do_command(":DIGitize CHANnel1")
         sData = self.do_query_ieee_block(":WAVeform:DATA?")
 
@@ -142,6 +153,7 @@ class Oscilloscope:
             print(f"Waveform format: {self.do_query(':WAVeform:FORMat?')}")
 
         # Get the waveform data.
+        # TODO: change this channel to whatever waveform source is
         self.do_command(":DIGitize CHANnel1")
         values = "".join(self.do_query(":WAVeform:DATA?")).split(",")
         values.pop()  # remove last element (it's empty)
@@ -153,10 +165,10 @@ class Oscilloscope:
         if hide_params:
             (header, data) = command.split(" ", 1)
             if self.debug:
-                print(f"\nCmd = '{header}'")
+                print(f"Cmd = '{header}'")
         else:
             if self.debug:
-                print(f"\nCmd = '{command}'")
+                print(f"Cmd = '{command}'")
 
         # inherent string casting? is this necessary?
         self.infiniium.write("%s" % command)
