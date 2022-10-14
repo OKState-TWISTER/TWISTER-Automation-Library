@@ -113,7 +113,7 @@ class Oscilloscope:
     #TODO: make channel argument optional so it doesn't have to specified every time
     # EX: curr_channel = query(get waveform source)
     #     digitize(curr_channel)
-    def get_waveform_words(self, channel):
+    def get_waveform_words(self, channel, reenable_display=False):
         # Choose the format of the data returned:
         self.do_command(":WAVeform:FORMat WORD")
         if self.debug:
@@ -139,6 +139,10 @@ class Oscilloscope:
         if self.debug:
             print(f"Number of data values: {len(values)}")
 
+        if reenable_display:
+            self.do_command(":RUN")
+            self.do_command(f":VIEW CHANnel{channel}")
+
         return values
 
 
@@ -155,11 +159,16 @@ class Oscilloscope:
 
         # Get the waveform data.
         # TODO: change this channel to whatever waveform source is
-        self.do_command(":DIGitize CHANnel1")
+        self.do_command(":DIGitize CHANnel2")
         values = "".join(self.do_query(":WAVeform:DATA?")).split(",")
         values.pop()  # remove last element (it's empty)
         print("Number of data values: %d" % len(values))
         return values
+
+
+    def enable_display(self, channel):
+        self.do_command(":RUN")
+        self.do_command(f":VIEW CHANnel{channel}")
 
 
     def do_command(self, command, hide_params=False):
