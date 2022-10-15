@@ -44,6 +44,7 @@ class Oscilloscope:
         self.infiniium.close()
 
 
+
     def get_sample_rate(self):
         xinc = self.do_query(":WAVeform:XINCrement?")
         samp_rate = 1 / float(xinc)
@@ -52,13 +53,15 @@ class Oscilloscope:
         return samp_rate
 
 
+
     def get_fft_peak(self, function):
         power = self.do_query(f":FUNCtion{function}:FFT:PEAK:MAGNitude?").strip().replace('"', "")
         if "9.99999E+37" in power:
             power = "-9999"
         return float(power)
 
-    
+
+
     # Set the channel that will be used as the source for get_waveform functions
     def set_waveform_source(self, channel):
         self.do_command(":WAVeform:STReaming OFF")
@@ -67,6 +70,7 @@ class Oscilloscope:
         self.do_command(f":WAVeform:SOURce CHANnel{channel}")
         if self.debug:
             print(f"Set waveform source to channel: {self.do_query(':WAVeform:SOURce?')}")
+
 
 
     # Sets trigger to rising edge on channel <channel>
@@ -87,66 +91,87 @@ class Oscilloscope:
             print(f"Trigger Source Changed to channel: {self.do_query(':TRIGger:EDGE:SOURce?')}")
 
 
-    def get_waveform_bytes(self):
-        # Get the number of waveform points.
-        qresult = self.do_query(":WAVeform:POINts?")
-        if self.debug:
-            print(f"Waveform points: {qresult}")
+
+    def get_waveform_bytes(self, channels : list=None, functions : list=None):
+        if channels is None:
+            channels = []
+        if functions is None:
+            functions = []
 
         # Choose the format of the data returned:
         self.do_command(":WAVeform:FORMat BYTE")
         if self.debug:
             print(f"Waveform format: {self.do_query(':WAVeform:FORMat?')}")
 
-        # Get the waveform data.
-        # TODO: change this channel to whatever waveform source is
-        self.do_command(":DIGitize CHANnel1")
-        sData = self.do_query_ieee_block(":WAVeform:DATA?")
+        # Get waveform(s) data.
+        data = self.get_waveform_raw(channels, functions)
 
-        # Unpack signed byte data.
-        values = struct.unpack("%db" % len(sData), sData)
-        if self.debug:
+        processed_data = []
+        for waveform in data: # this can probably be made more efficient
+            values = struct.unpack("%db" % len(waveform), waveform)
+            processed_data.append(values)
+
+        if self.debug: # TODO: make this useful
             print(f"Number of data values: {len(values)}")
-        return values
+
+        # TODO: if only one channel was captured, unpack it from root list
+        return processed_data
 
 
-    #TODO: make channel argument optional so it doesn't have to specified every time
-    # EX: curr_channel = query(get waveform source)
-    #     digitize(curr_channel)
-    def get_waveform_words(self, channel, reenable_display=False):
+
+    def get_waveform_words(self, channels : list=None, functions : list=None):
+        if channels is None:
+            channels = []
+        if functions is None:
+            functions = []
+
         # Choose the format of the data returned:
         self.do_command(":WAVeform:FORMat WORD")
         if self.debug:
             print(f"Waveform format: {self.do_query(':WAVeform:FORMat?')}")
-            print(f"Waveform points: {self.do_query(':WAVeform:POINts?')}")
 
-        # Get the waveform data.
-        # TODO: change this channel to whatever waveform source is
-        self.do_command(f":DIGitize CHANnel{channel}")
-        sData = self.do_query_ieee_block(":WAVeform:DATA?")
+        # Get waveform(s) data.
+        data = self.get_waveform_raw(channels, functions)
 
-        if self.debug:
-            print(f"Block data length: {len(sData)}")
-
-        # Unpack signed byte data.
-        # values = struct.unpack("%db" % (len(sData)/1), sData)
-
-        # this can probably be made more efficient
-        values = []
-        for m, l in zip(sData[0::2], sData[1::2]):
-            values.append(int.from_bytes([m, l], byteorder="big", signed=True))
+        processed_data = []
+        for waveform in data: # this can probably be made more efficient
+            values = []
+            for m, l in zip(waveform[0::2], waveform[1::2]):
+                values.append(int.from_bytes([m, l], byteorder="big", signed=True))
+            processed_data.append(values)
 
         if self.debug:
             print(f"Number of data values: {len(values)}")
 
-        if reenable_display:
-            self.do_command(":RUN")
-            self.do_command(f":VIEW CHANnel{channel}")
-
-        return values
+        # TODO: if only one channel was captured, unpack it from root list
+        return processed_data
 
 
-    def get_waveform_ascii(self):
+
+    def get_waveform_raw(self, channels: list, functions: list):
+        data = [] # a list of lists (of bytes)
+        if self.debug:
+            print(f"Waveform points: {self.do_query(':WAVeform:POINts?')}")
+
+        self.do_command(f":DIGitize")  # this command executes more quickly without parameters
+
+        for channel in channels:
+            self.do_command(f":WAVeform:SOURce CHANnel{channel}")
+            if self.debug:
+                print(f"SCapturing waveform on channel {self.do_query(':WAVeform:SOURce?')}")
+            data.append(self.do_query_ieee_block(":WAVeform:DATA?"))
+
+        for function in functions:
+            self.do_command(f":WAVeform:SOURce FUNCtion{function}")
+            if self.debug:
+                print(f"SCapturing waveform on function {self.do_query(':WAVeform:SOURce?')}")
+            data.append(self.do_query_ieee_block(":WAVeform:DATA?"))
+
+        return data
+
+
+
+    def get_waveform_ascii(self, channel: int):
         # Get the number of waveform points.
         qresult = self.do_query(":WAVeform:POINts?")
         if self.debug:
@@ -157,18 +182,23 @@ class Oscilloscope:
         if self.debug:
             print(f"Waveform format: {self.do_query(':WAVeform:FORMat?')}")
 
+        # Set the channel to capture
+        self.do_command(f":WAVeform:SOURce CHANnel{channel}")
+
         # Get the waveform data.
-        # TODO: change this channel to whatever waveform source is
-        self.do_command(":DIGitize CHANnel2")
+        self.do_command(f":DIGitize")
         values = "".join(self.do_query(":WAVeform:DATA?")).split(",")
         values.pop()  # remove last element (it's empty)
         print("Number of data values: %d" % len(values))
         return values
 
 
+
     def enable_display(self, channel):
         self.do_command(":RUN")
         self.do_command(f":VIEW CHANnel{channel}")
+
+
 
 
     def do_command(self, command, hide_params=False):
