@@ -23,6 +23,7 @@ class Oscilloscope:
 
         rm = pyvisa.ResourceManager(visa_library)
         try:
+            pyvisa.resources.Resource: self.infiniium  # type hinting
             self.infiniium = rm.open_resource(visa_address)
         except pyvisa.errors.VisaIOError as e:
             print(f"Error connecting to device string '{visa_address}'. Is the device connected?")
@@ -62,8 +63,8 @@ class Oscilloscope:
 
 
 
-    # Set the channel that will be used as the source for get_waveform functions
     def set_waveform_source(self, channel):
+        """Set the channel that will be used as the source for get_waveform functions"""
         self.do_command(":WAVeform:STReaming OFF")
         self.do_command(":ACQuire:COMPlete 100")  # take a full measurement
 
@@ -73,8 +74,8 @@ class Oscilloscope:
 
 
 
-    # Sets trigger to rising edge on channel <channel>
     def set_trigger_source(self, channel):
+        """Sets trigger to rising edge on channel <channel>"""
         # Set trigger more to edge triggered
         self.do_command(":TRIG:MODE EDGE")
         if self.debug:
@@ -93,6 +94,7 @@ class Oscilloscope:
 
 
     def get_waveform_bytes(self, channels : list=None, functions : list=None):
+        """Captures 1 byte/sample waveforms from the specified scope channels and/or functions."""
         if channels is None:
             channels = []
         if functions is None:
@@ -104,7 +106,7 @@ class Oscilloscope:
             print(f"Waveform format: {self.do_query(':WAVeform:FORMat?')}")
 
         # Get waveform(s) data.
-        data = self.get_waveform_raw(channels, functions)
+        data = self._get_waveform_raw(channels, functions)
 
         processed_data = []
         for waveform in data: # this can probably be made more efficient
@@ -120,6 +122,7 @@ class Oscilloscope:
 
 
     def get_waveform_words(self, channels : list=None, functions : list=None):
+        """Captures 2 byte/sample waveforms from the specified scope channels and/or functions."""
         if channels is None:
             channels = []
         if functions is None:
@@ -131,13 +134,11 @@ class Oscilloscope:
             print(f"Waveform format: {self.do_query(':WAVeform:FORMat?')}")
 
         # Get waveform(s) data.
-        data = self.get_waveform_raw(channels, functions)
+        data = self._get_waveform_raw(channels, functions)
 
         processed_data = []
-        for waveform in data: # this can probably be made more efficient
-            values = []
-            for m, l in zip(waveform[0::2], waveform[1::2]):
-                values.append(int.from_bytes([m, l], byteorder="big", signed=True))
+        for waveform in data: # this can still probably be made more efficient
+            values = [int.from_bytes([m, l], byteorder="big", signed=True) for m,l in zip(waveform[0::2], waveform[1::2])]
             processed_data.append(values)
 
         if self.debug:
@@ -148,7 +149,7 @@ class Oscilloscope:
 
 
 
-    def get_waveform_raw(self, channels: list, functions: list):
+    def _get_waveform_raw(self, channels: list, functions: list):
         data = [] # a list of lists (of bytes)
         if self.debug:
             print(f"Waveform points: {self.do_query(':WAVeform:POINts?')}")
@@ -189,12 +190,12 @@ class Oscilloscope:
         self.do_command(f":DIGitize")
         values = "".join(self.do_query(":WAVeform:DATA?")).split(",")
         values.pop()  # remove last element (it's empty)
-        print("Number of data values: %d" % len(values))
+        print(f"Number of data values: {values}")
         return values
 
 
 
-    def enable_display(self, channel):
+    def enable_channel(self, channel):
         self.do_command(":RUN")
         self.do_command(f":VIEW CHANnel{channel}")
 
@@ -202,6 +203,7 @@ class Oscilloscope:
 
 
     def do_command(self, command, hide_params=False):
+        """Executes SCPI command on the scope."""
         if hide_params:
             (header, data) = command.split(" ", 1)
             if self.debug:
@@ -210,8 +212,7 @@ class Oscilloscope:
             if self.debug:
                 print(f"Cmd = '{command}'")
 
-        # inherent string casting? is this necessary?
-        self.infiniium.write("%s" % command)
+        self.infiniium.write(str(command))
 
         if hide_params:
             self.check_instrument_errors(header)
@@ -222,7 +223,7 @@ class Oscilloscope:
     def do_query(self, query):
         if self.debug:
             print(f"Qys = '{query}'")
-        result = self.infiniium.query("%s" % query)
+        result = self.infiniium.query(str(query))
         self.check_instrument_errors(query)
         return result
 
@@ -230,7 +231,8 @@ class Oscilloscope:
     def do_query_ieee_block(self, query):
         if self.debug:
             print(f"Qyb = '{query}'")
-        result = self.infiniium.query_binary_values("%s" % query, datatype="s", container=bytes)
+        """Container type to use for the output data. Possible values are: list, tuple, np.ndarray, etc, Default to list."""
+        result = self.infiniium.query_binary_values(str(query), datatype="s", container=bytes)
         self.check_instrument_errors(query, exit_on_error=False)
         return result
 
