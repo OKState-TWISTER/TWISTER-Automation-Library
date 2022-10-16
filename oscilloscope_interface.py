@@ -9,6 +9,7 @@ https://www.keysight.com/zz/en/lib/software-detail/computer-software/io-librarie
 import atexit
 import struct
 
+import numpy as np
 import pyvisa
 
 
@@ -138,7 +139,10 @@ class Oscilloscope:
 
         processed_data = []
         for waveform in data: # this can still probably be made more efficient
-            values = [int.from_bytes([m, l], byteorder="big", signed=True) for m,l in zip(waveform[0::2], waveform[1::2])]
+            array = np.array(waveform, dtype=np.uint8)
+            m = (np.take(array, np.arange(0,array.size,2)).astype(np.int16))<<8
+            l = np.take(array, np.arange(1,array.size,2))
+            values = np.array((m+l), dtype=np.int16).tolist() # converting back to list takes a long time
             processed_data.append(values)
 
         if self.debug:
