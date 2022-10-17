@@ -63,6 +63,12 @@ class Oscilloscope:
         return float(power)
 
 
+    def acq_seg(self, trig_channel):
+        pass
+        # measure period of trigger channel
+        # set window to width of period
+        # delay window by period / 2 + 10%
+
 
     def set_waveform_source(self, channel):
         """Set the channel that will be used as the source for get_waveform functions"""
@@ -139,9 +145,8 @@ class Oscilloscope:
 
         processed_data = []
         for waveform in data: # I believe this is the fastest way to do this in python
-            array = np.frombuffer(waveform, dtype=np.uint8)
-            m = (np.take(array, np.arange(0,array.size,2)).astype(np.int16))<<8
-            l = np.take(array, np.arange(1,array.size,2))
+            m = (np.take(waveform, np.arange(0,waveform.size,2)).astype(np.int16))<<8
+            l = np.take(waveform, np.arange(1,waveform.size,2))
             values = np.array((m+l), dtype=np.int16).tolist() # converting back to list takes a long time
             processed_data.append(values)
 
@@ -159,6 +164,8 @@ class Oscilloscope:
             print(f"Waveform points: {self.do_query(':WAVeform:POINts?')}")
 
         self.do_command(f":DIGitize")  # this command executes more quickly without parameters
+
+        #TODO: enable channels if they aren't already / give warning if channels are disabled
 
         for channel in channels:
             self.do_command(f":WAVeform:SOURce CHANnel{channel}")
@@ -237,7 +244,7 @@ class Oscilloscope:
             print(f"Qyb = '{query}'")
         """Container type to use for the output data. Possible values are: list, tuple, np.ndarray, etc, Default to list."""
         # TODO: change datatype to 'B' so we can avoid frombuffer() conversion
-        result = self.infiniium.query_binary_values(str(query), container=np.ndarray, datatype="s")
+        result = self.infiniium.query_binary_values(str(query), container=np.ndarray, datatype="B")
         self.check_instrument_errors(query, exit_on_error=False)
         return result
 
