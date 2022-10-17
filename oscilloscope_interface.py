@@ -138,8 +138,8 @@ class Oscilloscope:
         data = self._get_waveform_raw(channels, functions)
 
         processed_data = []
-        for waveform in data: # this can still probably be made more efficient
-            array = np.array(waveform, dtype=np.uint8)
+        for waveform in data: # I believe this is the fastest way to do this in python
+            array = np.frombuffer(waveform, dtype=np.uint8)
             m = (np.take(array, np.arange(0,array.size,2)).astype(np.int16))<<8
             l = np.take(array, np.arange(1,array.size,2))
             values = np.array((m+l), dtype=np.int16).tolist() # converting back to list takes a long time
@@ -236,7 +236,8 @@ class Oscilloscope:
         if self.debug:
             print(f"Qyb = '{query}'")
         """Container type to use for the output data. Possible values are: list, tuple, np.ndarray, etc, Default to list."""
-        result = self.infiniium.query_binary_values(str(query), datatype="s", container=bytes)
+        # TODO: change datatype to 'B' so we can avoid frombuffer() conversion
+        result = self.infiniium.query_binary_values(str(query), container=np.ndarray, datatype="s")
         self.check_instrument_errors(query, exit_on_error=False)
         return result
 
