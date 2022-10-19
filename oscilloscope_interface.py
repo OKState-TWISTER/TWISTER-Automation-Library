@@ -30,8 +30,11 @@ class Oscilloscope:
             print(f"Error connecting to device string '{visa_address}'. Is the device connected?")
             raise e
 
+        # This clears any pervious errors that will stope the scope from
+        self.do_command("*CLS")
+
         if self.debug:
-            idn_string = self.do_query("*IDN?").strip()
+            idn_string = self.do_query("*IDN?")
             print(f"Connected to Oscilloscope: '{idn_string}'")
         
         self.infiniium.timeout = 20000
@@ -57,17 +60,47 @@ class Oscilloscope:
 
 
     def get_fft_peak(self, function):
-        power = self.do_query(f":FUNCtion{function}:FFT:PEAK:MAGNitude?").strip().replace('"', "")
+        power = self.do_query(f":FUNCtion{function}:FFT:PEAK:MAGNitude?").replace('"', "")
         if "9.99999E+37" in power:
             power = "-9999"
         return float(power)
 
 
-    def acq_seg(self, trig_channel):
-        pass
-        # measure period of trigger channel
-        # set window to width of period
-        # delay window by period / 2 + 10%
+    def view_one_segment(self, trig_channel=None):
+        """Sets the scope window to a single waveform segment by measuring the trigger period"""
+        auto_source = False
+        if not trig_channel:
+            trig_channel = self.do_query(":TRIGger:EDGE:SOURce?").replace("CHAN", "")  # this is gross
+            auto_source = True
+        if self.debug:
+            msg = f"Measuring segment length using channel {trig_channel} as trigger"
+            if auto_source:
+                msg += " (using system trigger source)"
+            print(msg)
+
+        self.do_command(f":TIMebase:RANGe 1E-3")
+        if self.debug:
+            print("Setting timebase to a large value to ensure a period can be measured")
+            print(f"Set timebase range to {self.do_query(':TIMebase:RANGe?')}s")
+
+        period = self.do_query(f"MEASure:PERiod? CHANnel{trig_channel}") # this also accepts functions as source
+        if self.debug:
+            print(f"Period measured to be: {period}")
+
+        if float(period) > 9e37:
+            print(f"Error finding period of waveform on channel {trig_channel}. " +
+                   "Make sure one period is viewable on screen.")
+            return
+
+        self.do_command(f":TIMebase:RANGe {period}")
+        if self.debug:
+            print(f"Set timebase range to {self.do_query(':TIMebase:RANGe?')}s")
+
+        # period / 2 - 2%
+        delay = float(period) * 0.49
+        self.do_command(f":TIMebase:POSition {delay:.2E}")
+        if self.debug:
+            print(f"Set timebase position to {self.do_query(':TIMebase:POSition?')}s")
 
 
     def set_waveform_source(self, channel):
@@ -236,14 +269,12 @@ class Oscilloscope:
             print(f"Qys = '{query}'")
         result = self.infiniium.query(str(query))
         self.check_instrument_errors(query)
-        return result
+        return result.rstrip()
 
 
-    def do_query_ieee_block(self, query):
+    def do_query_ieee_block(self, query) -> np.ndarray:
         if self.debug:
             print(f"Qyb = '{query}'")
-        """Container type to use for the output data. Possible values are: list, tuple, np.ndarray, etc, Default to list."""
-        # TODO: change datatype to 'B' so we can avoid frombuffer() conversion
         result = self.infiniium.query_binary_values(str(query), container=np.ndarray, datatype="B")
         self.check_instrument_errors(query, exit_on_error=False)
         return result
