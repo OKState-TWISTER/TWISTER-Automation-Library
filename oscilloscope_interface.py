@@ -7,7 +7,6 @@ https://www.keysight.com/zz/en/lib/software-detail/computer-software/io-librarie
 """
 
 import atexit
-import struct
 
 import numpy as np
 import pyvisa
@@ -68,6 +67,7 @@ class Oscilloscope:
 
     def view_one_segment(self, trig_channel=None):
         """Sets the scope window to a single waveform segment by measuring the trigger period"""
+        self.do_command(":RUN")  # this will not work if the scope is stopped
         auto_source = False
         if not trig_channel:
             trig_channel = self.do_query(":TRIGger:EDGE:SOURce?").replace("CHAN", "")  # this is gross
@@ -139,6 +139,10 @@ class Oscilloscope:
             channels = []
         if functions is None:
             functions = []
+        if isinstance(channels, int):  # at Kyle's request
+            channels = [channels]
+        if isinstance(functions, int):
+            functions = [functions]
 
         # Choose the format of the data returned:
         self.do_command(":WAVeform:FORMat BYTE")
@@ -150,13 +154,15 @@ class Oscilloscope:
 
         processed_data = []
         for waveform in data: # this can probably be made more efficient
-            values = struct.unpack("%db" % len(waveform), waveform)
+            values = waveform.astype(np.int8).tolist()
             processed_data.append(values)
 
         if self.debug: # TODO: make this useful
             print(f"Number of data values: {len(values)}")
 
-        # TODO: if only one channel was captured, unpack it from root list
+        # if only one channel was captured, unpack it from root list
+        if len(processed_data) == 1:
+            processed_data = processed_data[0]
         return processed_data
 
 
@@ -167,6 +173,11 @@ class Oscilloscope:
             channels = []
         if functions is None:
             functions = []
+        if isinstance(channels, int):  # at Kyle's request
+            channels = [channels]
+        if isinstance(functions, int):
+            functions = [functions]
+
 
         # Choose the format of the data returned:
         self.do_command(":WAVeform:FORMat WORD")
@@ -186,7 +197,9 @@ class Oscilloscope:
         if self.debug:
             print(f"Number of data values: {len(values)}")
 
-        # TODO: if only one channel was captured, unpack it from root list
+        # if only one channel was captured, unpack it from root list
+        if len(processed_data) == 1:
+            processed_data = processed_data[0]
         return processed_data
 
 
