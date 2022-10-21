@@ -16,6 +16,7 @@ class Oscilloscope:
     def __init__(self, visa_address="USB0::0x2A8D::0x9027::MY59190106::0::INSTR", *, 
                 visa_library="C:\\WINDOWS\\system32\\visa64.dll", debug=False):
         self.debug = debug
+        self.debug2 = False
         atexit.register(self.shutdown)
 
         if self.debug:
@@ -78,26 +79,34 @@ class Oscilloscope:
                 msg += " (using system trigger source)"
             print(msg)
 
-        self.do_command(f":TIMebase:RANGe 1E-3")
         if self.debug:
-            print("Setting timebase to a large value to ensure a period can be measured")
-            print(f"Set timebase range to {self.do_query(':TIMebase:RANGe?')}s")
+            print("Searching for trigger period")
+        # Set the threshold for period measurements
+        self.do_command(f":MEASure:THResholds:GENeral:METHod CHANnel{trig_channel},HYSTeresis")
+        self.do_command(f":MEASure:THResholds:GENeral:HYSTeresis CHANnel{trig_channel},0.1,0")
+        for p in range(9,0,-3):
+            self.do_command(f":TIMebase:RANGe 1E-{p}")
+            if self.debug:
+                print(f"Set timebase range to {self.do_query(':TIMebase:RANGe?')}s")
 
-        period = self.do_query(f"MEASure:PERiod? CHANnel{trig_channel}") # this also accepts functions as source
-        if self.debug:
-            print(f"Period measured to be: {period}")
+            period = float(self.do_query(f"MEASure:PERiod? CHANnel{trig_channel}")) # this also accepts functions as source
+            if self.debug:
+                print(f"Period measured to be: {period}")
 
-        if float(period) > 9e37:
+            if not period > 9e37:
+                break
+        else:  # if period cannot be found
             print(f"Error finding period of waveform on channel {trig_channel}. " +
                    "Make sure one period is viewable on screen.")
             return
 
-        self.do_command(f":TIMebase:RANGe {period}")
+        tbrange = period * 1.01
+        self.do_command(f":TIMebase:RANGe {tbrange:.2E}")
         if self.debug:
             print(f"Set timebase range to {self.do_query(':TIMebase:RANGe?')}s")
 
         # period / 2 - 2%
-        delay = float(period) * 0.49
+        delay = period * 0.4951
         self.do_command(f":TIMebase:POSition {delay:.2E}")
         if self.debug:
             print(f"Set timebase position to {self.do_query(':TIMebase:POSition?')}s")
@@ -263,10 +272,10 @@ class Oscilloscope:
         """Executes SCPI command on the scope."""
         if hide_params:
             (header, data) = command.split(" ", 1)
-            if self.debug:
+            if self.debug2:
                 print(f"Cmd = '{header}'")
         else:
-            if self.debug:
+            if self.debug2:
                 print(f"Cmd = '{command}'")
 
         self.infiniium.write(str(command))
@@ -278,7 +287,7 @@ class Oscilloscope:
 
 
     def do_query(self, query):
-        if self.debug:
+        if self.debug2:
             print(f"Qys = '{query}'")
         result = self.infiniium.query(str(query))
         self.check_instrument_errors(query)
@@ -286,7 +295,7 @@ class Oscilloscope:
 
 
     def do_query_ieee_block(self, query) -> np.ndarray:
-        if self.debug:
+        if self.debug2:
             print(f"Qyb = '{query}'")
         result = self.infiniium.query_binary_values(str(query), container=np.ndarray, datatype="B")
         self.check_instrument_errors(query, exit_on_error=False)
