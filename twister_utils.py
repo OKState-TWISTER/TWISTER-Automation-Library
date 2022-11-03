@@ -3,6 +3,8 @@ This module provides functions to automate many processes that are performed
 frequently with the TWISTER equipment
 """
 
+# TODO: add decorators to each function to test if the required devices are not None
+
 from math import pi, sqrt, sin, cos, asin, acos
 
 from oscilloscope_interface import Oscilloscope
@@ -11,20 +13,20 @@ from signalgen_interface import SignalGenerator
 
 class Utils:
     def __init__(self, *, debug=False, 
-                oscilloscope_controller: Oscilloscope, 
-                waveformgen_controller: WaveformGenerator, 
-                signalgen_controller1: SignalGenerator, 
-                signalgen_controller2: SignalGenerator):
+                oscilloscope_controller: Oscilloscope = None, 
+                waveformgen_controller: WaveformGenerator = None, 
+                signalgen_controller1: SignalGenerator = None, 
+                signalgen_controller2: SignalGenerator = None):
         self.debug = debug
 
         # I don't know the correct way to do this in python
-        if not isinstance(oscilloscope_controller, Oscilloscope):
+        if oscilloscope_controller and not isinstance(oscilloscope_controller, Oscilloscope):
             raise TypeError
-        if not isinstance(waveformgen_controller, WaveformGenerator):
+        if waveformgen_controller and not isinstance(waveformgen_controller, WaveformGenerator):
             raise TypeError
-        if not isinstance(signalgen_controller1, SignalGenerator):
+        if signalgen_controller1 and not isinstance(signalgen_controller1, SignalGenerator):
             raise TypeError
-        if not isinstance(signalgen_controller2, SignalGenerator):
+        if signalgen_controller2 and not isinstance(signalgen_controller2, SignalGenerator):
             raise TypeError
 
         self.scope = oscilloscope_controller
