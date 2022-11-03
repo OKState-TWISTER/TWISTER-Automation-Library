@@ -3,6 +3,7 @@ This module handles interfacing with the Keysight E8257D
 """
 
 import atexit
+import math
 
 import pyvisa
 
@@ -30,7 +31,7 @@ class SignalGenerator:
             pyvisa.resources.Resource: self.visa  # type hinting
             self.visa = rm.open_resource(visa_address)
         except pyvisa.errors.VisaIOError as e:
-            print(f"Error connecting to device string '{visa_address}'. Is the device connected?")
+            print(f"Error connecting to device string '{visa_address}' ({self.name}). Is the device connected?")
             raise e
 
 
@@ -38,20 +39,25 @@ class SignalGenerator:
         self.visa.close()
 
 
+    #TODO: add functions to enable and disable RF output
+
     
     def set_frequency(self, frequency: float):
-        self.do_command(f":FREQuency:FIXed {frequency:.2E}")
+        """Sets frequency down to .001Hz precision"""
+        self.do_command(f":FREQuency:FIXed {frequency:.13E}")
         if self.debug:
-            print(f"Set {self.name} frequency to {self.do_query(':FREQuency:FIXed?')}")
+            print(f"Set {self.name} frequency to {float(self.do_query(':FREQuency:FIXed?'))/1e9} GHz")
 
 
     def set_phase(self, degree: float):
+        """Sets output phase to <degree> degrees relative to reference."""
         self.do_command(f":PHASe {degree}DEG")
         if self.debug:
-            print(f"Set {self.name} phase to {self.do_query(':PHASe?')} radians")
+            print(f"Set {self.name} phase to {float(self.do_query(':PHASe?'))*180/math.pi:.2f} degrees")
 
 
     def set_phase_reference(self):
+        """Sets current phase to 0 degree reference"""
         self.do_command(":PHASe:REFerence")
         if self.debug:
             print(f"Set {self.name} phase reference")
