@@ -266,7 +266,7 @@ class Oscilloscope:
         self.do_command(f":VIEW CHANnel{channel}")
 
 
-
+    ## VISA Utils
 
     def do_command(self, command, hide_params=False):
         """Executes SCPI command on the scope."""
@@ -287,6 +287,7 @@ class Oscilloscope:
 
 
     def do_query(self, query):
+        """Send a query, check for errors, return string"""
         if self.debug2:
             print(f"Qys = '{query}'")
         result = self.infiniium.query(str(query))
@@ -295,6 +296,7 @@ class Oscilloscope:
 
 
     def do_query_ieee_block(self, query) -> np.ndarray:
+        """Send a query, check for errors, return binary values"""
         if self.debug2:
             print(f"Qyb = '{query}'")
         result = self.infiniium.query_binary_values(str(query), container=np.ndarray, datatype="B")
@@ -302,7 +304,16 @@ class Oscilloscope:
         return result
 
 
+    def do_command_ieee_block(self, command, values):
+        """Send a command and binary values and check for errors"""
+        if self.debug2:
+            print(f"Cmb = '{command}'")
+        self.infiniium.write_binary_values(str(command), values, datatype='B')
+        self.check_instrument_errors(command, exit_on_errors=False)
+
+
     def check_instrument_errors(self, command, exit_on_error=True):
+        """Check for instrument errors"""
         while True:
             error_string = self.infiniium.query(":SYSTem:ERRor? STRing")
             if error_string:  # If there is an error string value.
