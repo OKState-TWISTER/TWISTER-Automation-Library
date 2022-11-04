@@ -3,8 +3,6 @@ This module provides functions to automate many processes that are performed
 frequently with the TWISTER equipment
 """
 
-# TODO: add decorators to each function to test if the required devices are not None
-
 from math import pi, sqrt, sin, cos, asin, acos
 
 from oscilloscope_interface import Oscilloscope
@@ -34,12 +32,27 @@ class Utils:
         self.psg1 = signalgen_controller1
         self.psg2 = signalgen_controller2
 
+    ## Decorators
 
+    def full_stack(func):
+        """Checks that all required instance variables have been initialized with their proper VISA device."""
+        def wrapper(self):
+            if not self.scope:
+                raise Exception("Library was not initialized with required Oscilloscope device")
+            if not self.awg:
+                raise Exception("Library was not initialized with required WaveformGenerator device")
+            if not self.psg1 or not self.psg2:
+                raise Exception("Library was not initialized with required SignalGenerator device")
+            func(self)
+        return wrapper
+
+    
+    ## Util Functions
 
     # Automatically adjusts the phase on one of the local oscillators 
     # until the received signal is maximized
 
-    # 
+    @full_stack
     def peak_phase(self, psg_to_adjust=1, diff_step=pi/8):
         """todo description
         diff_step must be less than or equal to 1/2 of the upconverted LO period

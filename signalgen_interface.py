@@ -40,6 +40,7 @@ class SignalGenerator:
 
 
     #TODO: add functions to enable and disable RF output
+    #TODO: find a way to check for awg output state before disabling LO to protect CCU
 
     
     def set_frequency(self, frequency: float):
