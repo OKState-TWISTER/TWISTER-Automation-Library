@@ -68,7 +68,7 @@ class WaveformGenerator:
             self.do_command(f":OUTPut{channel}:STATe OFF")
             if self.debug:
                 channel_state = self.do_query(f":OUTPut{channel}:STATe?")
-                print(f"Set channel {channel+1} state to {channel_state}")
+                print(f"Set channel {channel} state to {channel_state}")
         self.visa.close()
 
 
@@ -120,8 +120,15 @@ delete a waveform from the memory of a channel"""
 
     @contextmanager
     def enable_output(self):
-        #TODO: do not enable output if signalgen is initialized and not enabled
+        """Context manager will autmatically disable output when context block is complete."""
         try:
+            # Do not enable output if signalgen is initialized and not enabled
+            if signalgen_interface.instance1 is not None and not signalgen_interface.instance1.output_enabled():
+                print("Warning: Enable LO output before enabling AWG")
+                return # this generates an error when not yield
+            if signalgen_interface.instance2 is not None and not signalgen_interface.instance2.output_enabled():
+                print("Warning: Enable LO output before enabling AWG")
+                return
             # enable output on channel 1 and 3 
             self.do_command(":OUTPut1:STATe ON")
             self.do_command(":OUTPut3:STATe ON")
@@ -136,6 +143,11 @@ delete a waveform from the memory of a channel"""
             if self.debug:
                 print(f"Channel 1 state: {self.do_query(':OUTPut1:STATe?')}")
                 print(f"Channel 3 state: {self.do_query(':OUTPut3:STATe?')}")
+
+    
+    def output_enabled(self) -> bool:
+        """Returns true if AWG output is enabled"""
+        return bool(int(self.do_query(':OUTPut1:STATe?')))
 
 
     ## VISA Utils
