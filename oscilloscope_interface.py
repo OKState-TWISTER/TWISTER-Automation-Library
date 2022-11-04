@@ -286,6 +286,14 @@ class Oscilloscope:
             self.check_instrument_errors(command)
 
 
+    def do_command_ieee_block(self, command, values):
+        """Send a command and binary values and check for errors"""
+        if self.debug2:
+            print(f"Cmb = '{command}'")
+        self.infiniium.write_binary_values(str(command), values, datatype='B')
+        self.check_instrument_errors(command, exit_on_errors=False)
+
+
     def do_query(self, query):
         """Send a query, check for errors, return string"""
         if self.debug2:
@@ -302,14 +310,6 @@ class Oscilloscope:
         result = self.infiniium.query_binary_values(str(query), container=np.ndarray, datatype="B")
         self.check_instrument_errors(query, exit_on_error=False)
         return result
-
-
-    def do_command_ieee_block(self, command, values):
-        """Send a command and binary values and check for errors"""
-        if self.debug2:
-            print(f"Cmb = '{command}'")
-        self.infiniium.write_binary_values(str(command), values, datatype='B')
-        self.check_instrument_errors(command, exit_on_errors=False)
 
 
     def check_instrument_errors(self, command, exit_on_error=True):
