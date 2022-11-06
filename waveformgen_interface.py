@@ -128,9 +128,13 @@ class WaveformGenerator:
                 print(f"Channel 3 state: {self.do_query(':OUTPut3:STATe?')}")
 
     
-    def output_enabled(self) -> bool:
-        """Returns true if AWG output is enabled"""
-        return bool(int(self.do_query(':OUTPut1:STATe?')))
+    def output_enabled(self) -> bool: #TODO check if there is a better command for this
+        """Returns true if AWG channel 1 output is enabled"""
+        c1 = bool(int(self.do_query(':OUTPut1:STATe?')))
+        c2 = bool(int(self.do_query(':OUTPut2:STATe?')))
+        c3 = bool(int(self.do_query(':OUTPut3:STATe?')))
+        c4 = bool(int(self.do_query(':OUTPut4:STATe?')))
+        return c1 or c2 or c3 or c4
 
 
     ## VISA Utils
