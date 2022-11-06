@@ -8,10 +8,10 @@ version = "0.2.0"
 description = "API for interacting with Keysight instruments in the TWISTER system"
 readme = "README.md"
 
-[tool.setuptools]
-py-modules = ['oscilloscope_interface', 'signalgen_interface', 'twister_utils', 'waveformgen_interface']
-
 requires-python = ">=3.7"
 dependencies = [
     "pyvisa",
 ]
+
+[tool.setuptools]
+py-modules = ['oscilloscope_interface', 'signalgen_interface', 'twister_utils', 'waveformgen_interface']
