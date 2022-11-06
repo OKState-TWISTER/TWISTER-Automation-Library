@@ -73,62 +73,42 @@ class WaveformGenerator:
 
 
 
-    # put useful functions to control AWG here
 
-    """To prepare your module for arbitrary waveform generation follow these steps:
-• Set Instrument Mode (number of channels), Memory Sample Rate Divider,
-and memory usage of the channels (Internal/Extended).
-• Define a segment using the various forms of the
-o :TRAC[1|2|3|4]:DEF command.
-• Fill the segment with sample values using
-o :TRAC[1|2|3|4]:DATA.
-• Signal generation starts after calling INIT:IMM.
-• Use the :TRAC[1|2|3|4]:CAT? query to read the length of a waveform loaded
-into the memory of a channel. Use the :TRAC[1|2|3|4]:DEL:ALL command to
-delete a waveform from the memory of a channel"""
-
-
-    def load_waveform(self, filepath, freq):
+    def load_waveform(self, filepath, samp_rate):
         """Loads data from file at <filepath> onto AWG"""
         # TODO: might need to clear segment before sending new data "TRAC1:DEL:ALL"
-        with open(filepath, 'rb') as fh:
-            data = fh.read()
-        newdata = []
-        for m, l in zip(data[0::2], data[1::2]): # swap the byte order just for fun
-            newdata.append(l)
-            newdata.append(m)
-        data = bytes(newdata)
-        data = data.zfill(5632*2)
+        data = open(filepath, 'rb').read()
+        data[0::2], data[1::2] = data[1::2], data[0::2] # swap word byteorder
         length = len(data)/2  # length of samples (ignore marker byte)
         #Console.WriteLine("Set memory mode to external for channel " + channel.ToString());
         #fIO.WriteString(string.Format(":TRAC{0}:MMOD EXT", channel), true);
 
-        self.do_command(f":FREQuency:RASTer {freq}")
+        # Set output DAC sample rate
+        self.do_command(f":FREQuency:RASTer {samp_rate}")
         if self.debug:
             print(f"Set AWG sample frequency to {self.do_query(':FREQuency:RASTer?')}")
 
         self.do_command(f":TRACe1:DEFine 1,{length}")
 
-        self.do_command_ieee_block(":TRAC1:DATA 1,0,", data)
+        self.do_command_ieee_block(":TRACe1:DATA 1,0,", data)
 
         print(self.do_query(":TRAC1:CAT?"))
 
+        # enable waveform generation #TODO: put this in enable_output()?
         self.do_command(":INIT:IMM")
 
             
 
 
     @contextmanager
-    def enable_output(self):
+    def enable_output(self): #TODO add option to select channels to operate
         """Context manager will autmatically disable output when context block is complete."""
         try:
             # Do not enable output if signalgen is initialized and not enabled
             if signalgen_interface.instance1 is not None and not signalgen_interface.instance1.output_enabled():
-                print("Warning: Enable LO output before enabling AWG")
-                return # this generates an error when not yield
+                raise RuntimeError("Warning: Enable LO output before enabling AWG")
             if signalgen_interface.instance2 is not None and not signalgen_interface.instance2.output_enabled():
-                print("Warning: Enable LO output before enabling AWG")
-                return
+                raise RuntimeError("Warning: Enable LO output before enabling AWG")
             # enable output on channel 1 and 3 
             self.do_command(":OUTPut1:STATe ON")
             self.do_command(":OUTPut3:STATe ON")
@@ -137,6 +117,9 @@ delete a waveform from the memory of a channel"""
                 print(f"Channel 3 state: {self.do_query(':OUTPut3:STATe?')}")
 
             yield
+        except RuntimeError as e:
+            print(e)
+            #raise e
         finally:
             self.do_command(f":OUTPut1:STATe OFF")
             self.do_command(f":OUTPut3:STATe OFF")
@@ -153,6 +136,7 @@ delete a waveform from the memory of a channel"""
     ## VISA Utils
 
     def do_command(self, command, hide_params=False):
+        """Executes SCPI command on the AWG."""
         if hide_params:
             header, = command.split(" ", 1)
             if self.debug2:
@@ -165,7 +149,7 @@ delete a waveform from the memory of a channel"""
 
 
     def do_command_ieee_block(self, command, values):
-        """Send a command and binary values and check for errors"""
+        """Send a command and binary values and check for errors."""
         if self.debug2:
             print(f"Cmb = '{command}'")
         self.visa.write_binary_values(str(command), values, datatype='B') #is_big_endian=False?# might try 'H'
@@ -173,6 +157,7 @@ delete a waveform from the memory of a channel"""
 
 
     def do_query(self, query):
+        """Send a query, check for errors, return string."""
         if self.debug2:
             print(f"Qys = '{query}'")
         result = self.visa.query(str(query)).strip()
@@ -180,6 +165,7 @@ delete a waveform from the memory of a channel"""
 
 
     def do_query_ieee_block(self, query):
+        """Send a query, check for errors, return binary values."""
         if self.debug2:
             print(f"Qyb = '{query}'")
         result = self.visa.query_binary_values(str(query), datatype="s", container=bytes)
@@ -187,7 +173,7 @@ delete a waveform from the memory of a channel"""
 
 
     def check_instrument_errors(self, command, exit_on_error=True):
-        """Check for instrument errors"""
+        """Check for instrument errors."""
         while True:
             error_string = self.visa.query(":SYSTem:ERRor?")
             if error_string:  # If there is an error string value.
