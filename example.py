@@ -3,28 +3,25 @@ from time import perf_counter as time
 import matplotlib.pyplot as plt
 
 from oscilloscope_interface import Oscilloscope
+from waveformgen_interface import WaveformGenerator
+from signalgen_interface import SignalGenerator
+import twister_utils
 
-scope = Oscilloscope()
+scope = Oscilloscope(debug=True)
+#awg = WaveformGenerator(debug=True)
+psg1 = SignalGenerator(device_no=1, debug=True)
+psg2 = SignalGenerator(device_no=2, debug=True)
 
-scope.set_trigger_source(3)
+#scope.set_trigger_source(3)
+#scope.view_one_segment()
 
-#scope.do_command(':ACQ:COMP 60')
-#scope.do_command(':ACQ:POIN 64')
+filepath = r"C:\Users\UTOL\Desktop\MRI-Testbed-main\M4N4_10.00Gbd_54.0Gsps_0.90Beta.bin"
+samplerate = 55e9
 
-start = time()
-values = scope.get_waveform_words(channels=[2,3,1,4])
-end = time()
-print(f"Took {end - start} seconds")
-
-
-print(f"len {len(values)}")
-
-figure, axis = plt.subplots(2, 1)
-
-axis[0].plot(values[0])
-axis[0].set_title("Channel 2")
-  
-axis[1].plot(values[1])
-axis[1].set_title("Channel 3")
-
-plt.show()
+#with awg.enable_output():
+while True:
+    start = time()
+    twister_utils.peak_phase(debug=False)
+    end = time()
+    print(f"took {end-start} seconds")
+    input()

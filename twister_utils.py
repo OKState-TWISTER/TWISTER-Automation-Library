@@ -20,28 +20,29 @@ import signalgen_interface as psgi
 
 def full_stack(func):
     """Checks that all required VISA devices have been initialized."""
-    def wrapper():
+    def wrapper(*args, **kwargs):
         if not scopei.instance:
             raise Exception("Required Oscilloscope device was not initialized")
         if not awgi.instance:
             raise Exception("Required WaveformGenerator device was not initialized")
         if not psgi.instance1 or not psgi.instance2:
             raise Exception("Required SignalGenerator device was not initialized")
-        func()
+        func(*args, **kwargs)
     return wrapper
 
 
 ## Util Functions
 
 
-@full_stack
-def peak_phase(self, psg_to_adjust=1, diff_step=pi/8):
+# TODO: add averaging
+#@full_stack
+def peak_phase(psg_to_adjust=1, diff_step=pi/18, debug=False):
     """Automatically adjusts the phase on one of the local oscillators until the received signal is maximized.
 
-    diff_step must be less than or equal to 1/2 of the upconverted LO period
+    diff_step must be greater than 1/4 the expected period.
     if the upconverters have a multiplier of n, then actual period will be (2pi)/n
     for the maximum upconverter multiplier (12 as of this writing)
-    diff_step <= math.pi/6"""
+    diff_step > pi/24"""
     scope = scopei.instance
     awg = awgi.instance
     try:
@@ -49,9 +50,8 @@ def peak_phase(self, psg_to_adjust=1, diff_step=pi/8):
     except IndexError:
         raise IndexError("Valid indices for Analog Signal Generator device: [1, 2]")
 
-    ### awg:
-        # save current awg settings
-        # set output to sinewave (IF should be near the testing IF i think (take as parameter?))
+    diff_step = diff_step*180/pi
+
     
     ### scope
     # save current oscilloscope settings
@@ -64,39 +64,74 @@ def peak_phase(self, psg_to_adjust=1, diff_step=pi/8):
     # may need to set y scale
     
     # execute algo
+    x1 = 0
     psg.set_phase_reference()
-    # measure point 1
-    p1 = float(scope.do_query(':MEASure:VPP? FUNCtion1'))
+    p1 = float(scope.do_query(':MEASure:VPP? CHAN1'))
     if debug:
-        print(f"Measured vpp at p1: {p1}")
+        print(f"Measured vpp {p1} at x1")
 
-    # advance phase by diff_step
-    psg.set_phase(diff_step)
-    # measure new received power
-    p2 = float(scope.do_query(':MEASure:VPP? FUNCtion1'))
+    x2 = diff_step
+    psg.set_phase(x2)
+    p2 = float(scope.do_query(':MEASure:VPP? CHAN1'))
     if debug:
-        print(f"Measured vpp at p2: {p2}")
+        print(f"Measured vpp {p2} at x2")
 
-    # advance phase by another diff_step
-    psg.set_phase(2*diff_step)
-    # measure new received power
-    p3 = float(scope.do_query(':MEASure:VPP? FUNCtion1'))
+    x3 = 2*diff_step
+    psg.set_phase(x3)
+    p3 = float(scope.do_query(':MEASure:VPP? CHAN1'))
     if debug:
-        print(f"Measured vpp at p3: {p3}")
+        print(f"Measured vpp {p3} at x3")
 
     if 9.99999e37 in [p1, p2, p3]:
         print("Error measuring peak, measured signal saturated (adjust channel 1 scale)")
         return
 
-    # describe the received amplitude as A*sin(w*x+phi)
-    w = acos((p1+p3)/(2*p2))/diff_step
+    m1 = (p2*x2)/(p1+p2)
+    m2 = (p2*x2+p3*x3)/(p2+p3)
 
-    A = sqrt(p1**2 + ((p2-p1*cos(w))/sin(w))**2)
+    psg.set_phase(m1)
+    pm1 = float(scope.do_query(':MEASure:VPP? CHAN1'))
+    if debug:
+        print(f"Measured vpp {pm1} at m1")
 
-    phi = asin(p1/A)
+    psg.set_phase(m2)
+    pm2 = float(scope.do_query(':MEASure:VPP? CHAN1'))
+    if debug:
+        print(f"Measured vpp {pm2} at m2")
 
-    # peak of sine wave is at pi/2 - phi
-    psg.set_phase(pi/2 - phi)
+    if pm1 > pm2:
+        x4 = m1
+        p4 = pm1
+        if p1 > p2:
+            x5 = x1
+            p5 = p1
+        else:
+            x5 = x2
+            p5 = p2
+    else:
+        x4 = m2
+        p4 = pm2
+        if p2 > p3:
+            x5 = x2
+            p5 = p2
+        else:
+            x5 = x3
+            p5 = p3
+
+    m3 = (p4*x4+p5*x5)/(p4+p5)
+    psg.set_phase(m3)
+    pm3 = float(scope.do_query(':MEASure:VPP? CHAN1'))
+    if debug:
+        print(f"Measured vpp {pm3} at m3")
+
+    if pm3 > p4 and pm3 > p5:
+        phi = m3
+    elif p4 > pm3 and p4 > p5:
+        phi = x4
+    else:
+        phi = x5
+
+    psg.set_phase(phi)
 
     # reload original scope settings
     #self.scope.do_command_ieee_block(":SYSTem:SETup", setup_bytes)
