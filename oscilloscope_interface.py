@@ -73,7 +73,10 @@ class Oscilloscope:
 
 
     def view_n_segments(self, n=1, trig_channel=None):
-        """Sets the scope window to a single waveform segment by measuring the trigger period"""
+        """Sets the scope window to a view <n> waveform segments by measuring the period of
+        whatever channel the scope is currently triggering on.
+        
+        A specific trigger channel can be specified with [trig_channel]."""
         self.do_command(":RUN")  # this will not work if the scope is stopped
         auto_source = False
         if not trig_channel:
