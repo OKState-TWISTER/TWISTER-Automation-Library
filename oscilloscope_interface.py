@@ -72,7 +72,7 @@ class Oscilloscope:
         return float(power)
 
 
-    def view_one_segment(self, trig_channel=None):
+    def view_n_segments(self, n=1, trig_channel=None):
         """Sets the scope window to a single waveform segment by measuring the trigger period"""
         self.do_command(":RUN")  # this will not work if the scope is stopped
         auto_source = False
@@ -106,16 +106,21 @@ class Oscilloscope:
                    "Make sure one period is viewable on screen.")
             return
 
-        tbrange = period * 1.01
+        tbrange = period * n * 1.01
         self.do_command(f":TIMebase:RANGe {tbrange:.2E}")
         if self.debug:
             print(f"Set timebase range to {self.do_query(':TIMebase:RANGe?')}s")
 
-        # period / 2 - 2%
-        delay = period * 0.4951
-        self.do_command(f":TIMebase:POSition {delay:.2E}")
-        if self.debug:
-            print(f"Set timebase position to {self.do_query(':TIMebase:POSition?')}s")
+        if n % 2 != 0:  # set begining of first segment near left edge of scope screen
+            # period / 2 - 2%
+            delay = period * 0.4951
+            self.do_command(f":TIMebase:POSition {delay:.2E}")
+            if self.debug:
+                print(f"Set timebase position to {self.do_query(':TIMebase:POSition?')}s")
+        else:
+            self.do_command(f":TIMebase:POSition 0")
+            if self.debug:
+                print(f"Set timebase position to {self.do_query(':TIMebase:POSition?')}s")
 
 
     def set_waveform_source(self, channel):
