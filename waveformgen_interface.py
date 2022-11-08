@@ -59,9 +59,9 @@ class WaveformGenerator:
         for channel in range(1,5):
             self.do_command(f":VOLTage{channel} 0.220")
             if self.debug:
-                print(f"Channel {channel} voltage set to {float(self.do_query(':VOLTage1?')):.3f} Volts")
+                channel_voltage = float(self.do_query(f":VOLTage{channel}?"))
+                print(f"Channel {channel} voltage set to {channel_voltage:.3f} Volts")
 
-       #:INIT:IMM # start data generation."""
 
 
     def shutdown(self):
@@ -81,17 +81,16 @@ class WaveformGenerator:
         data = numpy.fromfile(filepath, dtype="H")
         length = len(data)  # length of samples
 
-
         # Set output DAC sample rate
         self.do_command(f":FREQuency:RASTer {samp_rate}")
         if self.debug:
             print(f"Set AWG sample frequency to {self.do_query(':FREQuency:RASTer?')}")
 
         self.do_command(f":TRACe1:DEFine 1,{length}")
-
         self.do_command_ieee_block(":TRACe1:DATA 1,0,", data)
 
-        print(self.do_query(":TRAC1:CAT?"))
+        if self.debug:
+            print(f"Trace 1 segment, length: {self.do_query(':TRACe1::CATalog?')}")
 
         # enable waveform generation
         self.do_command(":INIT:IMM")
@@ -100,13 +99,12 @@ class WaveformGenerator:
 
 
     @contextmanager
-    def enable_output(self): #TODO add option to select channels to operate
+    def enable_output(self): #TODO add option to select channels to operate / enable all channels possible
         """Context manager will autmatically disable output when context block is complete."""
         try:
             # Do not enable output if signalgen is initialized and not enabled
-            if signalgen_interface.instance1 is not None and not signalgen_interface.instance1.output_enabled():
-                raise RuntimeError("Warning: Enable LO output before enabling AWG")
-            if signalgen_interface.instance2 is not None and not signalgen_interface.instance2.output_enabled():
+            if (signalgen_interface.instance1 is not None and not signalgen_interface.instance1.output_enabled()
+            or signalgen_interface.instance2 is not None and not signalgen_interface.instance2.output_enabled()):
                 raise RuntimeError("Warning: Enable LO output before enabling AWG")
             # enable output on channel 1 and 3 
             self.do_command(":OUTPut1:STATe ON")
@@ -118,7 +116,7 @@ class WaveformGenerator:
             yield
         except RuntimeError as e:
             print(e)
-            #raise e
+            raise e
         finally:
             self.do_command(f":OUTPut1:STATe OFF")
             self.do_command(f":OUTPut3:STATe OFF")
