@@ -175,18 +175,18 @@ class Oscilloscope:
         # Get waveform(s) data.
         data = self._get_waveform_raw(channels, functions)
 
-        processed_data = []
+        packed_data = []
         for waveform in data: # this can probably be made more efficient
             values = waveform.astype(np.int8).tolist()
-            processed_data.append(values)
+            packed_data.append(values)
 
-        if self.debug: # TODO: make this useful
-            print(f"Number of data values: {len(values)}")
+        if self.debug:
+            print(f"Total number of data values: {len(packed_data[0]) * len(packed_data)}")
 
-        # if only one channel was captured, unpack it from root list
-        if len(processed_data) == 1:
-            processed_data = processed_data[0]
-        return processed_data
+        # if only one channel was captured, return it instead of a single element list
+        if len(packed_data) == 1:
+            packed_data = packed_data[0]
+        return packed_data
 
 
 
@@ -201,7 +201,6 @@ class Oscilloscope:
         if isinstance(functions, int):
             functions = [functions]
 
-
         # Choose the format of the data returned:
         self.do_command(":WAVeform:FORMat WORD")
         if self.debug:
@@ -210,20 +209,21 @@ class Oscilloscope:
         # Get waveform(s) data.
         data = self._get_waveform_raw(channels, functions)
 
-        processed_data = []
+        packed_data = []
+        # pack every 2 bytes into 1 short (int16)
         for waveform in data: # I believe this is the fastest way to do this in python
             m = (np.take(waveform, np.arange(0,waveform.size,2)).astype(np.int16))<<8
             l = np.take(waveform, np.arange(1,waveform.size,2))
             values = np.array((m+l), dtype=np.int16).tolist() # converting back to list takes a long time
-            processed_data.append(values)
+            packed_data.append(values)
 
         if self.debug:
-            print(f"Number of data values: {len(values)}")
+            print(f"Total number of data values: {len(packed_data[0]) * len(packed_data)}")
 
-        # if only one channel was captured, unpack it from root list
-        if len(processed_data) == 1:
-            processed_data = processed_data[0]
-        return processed_data
+        # if only one channel was captured, return it instead of a single element list
+        if len(packed_data) == 1:
+            packed_data = packed_data[0]
+        return packed_data
 
 
 
@@ -232,20 +232,20 @@ class Oscilloscope:
         if self.debug:
             print(f"Waveform points: {self.do_query(':WAVeform:POINts?')}")
 
-        self.do_command(f":DIGitize")  # this command executes more quickly without parameters
+        self.do_command(f":DIGitize")
 
         #TODO: enable channels if they aren't already / give warning if channels are disabled
 
         for channel in channels:
             self.do_command(f":WAVeform:SOURce CHANnel{channel}")
             if self.debug:
-                print(f"SCapturing waveform on channel {self.do_query(':WAVeform:SOURce?')}")
+                print(f"Capturing waveform on channel {self.do_query(':WAVeform:SOURce?')}")
             data.append(self.do_query_ieee_block(":WAVeform:DATA?"))
 
         for function in functions:
             self.do_command(f":WAVeform:SOURce FUNCtion{function}")
             if self.debug:
-                print(f"SCapturing waveform on function {self.do_query(':WAVeform:SOURce?')}")
+                print(f"Capturing waveform on function {self.do_query(':WAVeform:SOURce?')}")
             data.append(self.do_query_ieee_block(":WAVeform:DATA?"))
 
         return data
