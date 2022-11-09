@@ -15,13 +15,14 @@ psg2 = SignalGenerator(device_no=2, debug=True)
 #scope.set_trigger_source(3)
 #scope.view_one_segment()
 
-filepath = r"C:\Users\UTOL\Desktop\12.5GHz_sine_6.3950Gsps.bin"
-samplerate = 63.95e9
+filepath = r"C:\Users\UTOL\Desktop\Waveforms\M2N8_1.00Gbd_54.0Gsps_0.90Beta.bin"
+samplerate = 54e9
 
-with awg.enable_output():
-    start = time()
-    awg.load_waveform(filepath, samplerate)
-    end = time()
-    print(f"time: {end-start}")
-    input()
+with psg1.enable_output(), psg2.enable_output():
+    with awg.enable_output():
+        start = time()
+        awg.load_waveform(filepath, samplerate)
+        end = time()
+        print(f"time: {end-start}")
+        input()
 
