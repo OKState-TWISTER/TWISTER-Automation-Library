@@ -77,9 +77,12 @@ class WaveformGenerator:
 
     def load_waveform(self, filepath, samp_rate):
         """Loads data from file at <filepath> onto AWG"""
-        # TODO: might need to clear segment before sending new data "TRAC1:DEL:ALL"
         data = numpy.fromfile(filepath, dtype="H")
         length = len(data)  # length of samples
+
+        self.do_command("TRAC1:DEL:ALL")
+        if self.debug:
+            print(f"Cleared all segments from trace 1 memory")
 
         # Set output DAC sample rate
         self.do_command(f":FREQuency:RASTer {samp_rate}")
