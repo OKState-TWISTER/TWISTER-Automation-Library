@@ -80,6 +80,7 @@ class WaveformGenerator:
         data = numpy.fromfile(filepath, dtype="H")
         length = len(data)  # length of samples
 
+        self.do_command("ABORt")
         self.do_command("TRAC1:DEL:ALL")
         if self.debug:
             print(f"Cleared all segments from trace 1 memory")
