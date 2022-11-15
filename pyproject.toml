@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "twister-automation"
-version = "0.3.2"
+version = "0.4.0"
 description = "API for interacting with Keysight instruments in the TWISTER system"
 readme = "README.md"
 
@@ -12,6 +12,3 @@ requires-python = ">=3.7"
 dependencies = [
     "pyvisa",
 ]
-
-[tool.setuptools]
-py-modules = ['oscilloscope_interface', 'signalgen_interface', 'twister_utils', 'waveformgen_interface']

@@ -11,31 +11,15 @@ import oscilloscope_interface as scopei
 import waveformgen_interface as awgi
 import signalgen_interface as psgi
 
-#TODO: this can be a module without any class
+
 # all of the debug messages here are probably redundant to the 
 # debug of functions in other modules
-
-
-## Decorators
-
-def full_stack(func):
-    """Checks that all required VISA devices have been initialized."""
-    def wrapper(*args, **kwargs):
-        if not scopei.instance:
-            raise Exception("Required Oscilloscope device was not initialized")
-        if not awgi.instance:
-            raise Exception("Required WaveformGenerator device was not initialized")
-        if not psgi.instance1 or not psgi.instance2:
-            raise Exception("Required SignalGenerator device was not initialized")
-        func(*args, **kwargs)
-    return wrapper
 
 
 ## Util Functions
 
 
 # TODO: add averaging
-#@full_stack
 def peak_phase(psg_to_adjust=1, diff_step=pi/18, debug=False):
     """Automatically adjusts the phase on one of the local oscillators until the received signal is maximized.
 
@@ -84,6 +68,7 @@ def peak_phase(psg_to_adjust=1, diff_step=pi/18, debug=False):
 
     if 9.99999e37 in [p1, p2, p3]:
         print("Error measuring peak, measured signal saturated (adjust channel 1 scale)")
+        # TODO: we can adjust the channel 1 scale here
         return
 
     m1 = (p2*x2)/(p1+p2)
@@ -132,7 +117,3 @@ def peak_phase(psg_to_adjust=1, diff_step=pi/18, debug=False):
         phi = x5
 
     psg.set_phase(phi)
-
-    # reload original scope settings
-    #self.scope.do_command_ieee_block(":SYSTem:SETup", setup_bytes)
-    # set awg to original settings
