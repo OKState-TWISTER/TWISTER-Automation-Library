@@ -93,21 +93,29 @@ class Oscilloscope:
         # Set the threshold for period measurements
         self.do_command(f":MEASure:THResholds:GENeral:METHod CHANnel{trig_channel},HYSTeresis")
         self.do_command(f":MEASure:THResholds:GENeral:HYSTeresis CHANnel{trig_channel},0.1,0")
-        for p in range(9,0,-3):
-            self.do_command(f":TIMebase:RANGe 1E-{p}")
-            if self.debug:
-                print(f"Set timebase range to {self.do_query(':TIMebase:RANGe?')}s")
+        
+        period = float(self.do_query(f"MEASure:PERiod? CHANnel{trig_channel}"))
+        if self.debug:
+            print(f"Period measured to be: {period}")
 
-            period = float(self.do_query(f"MEASure:PERiod? CHANnel{trig_channel}")) # this also accepts functions as source
+        if period > 9e37:
             if self.debug:
-                print(f"Period measured to be: {period}")
+                print("Count not find period with current view. Searching...")
+            for p in range(9,0,-2):
+                self.do_command(f":TIMebase:RANGe 1E-{p}")
+                if self.debug:
+                    print(f"Set timebase range to {self.do_query(':TIMebase:RANGe?')}s")
 
-            if not period > 9e37:
-                break
-        else:  # if period cannot be found
-            print(f"Error finding period of waveform on channel {trig_channel}. " +
-                   "Make sure one period is viewable on screen.")
-            return
+                period = float(self.do_query(f"MEASure:PERiod? CHANnel{trig_channel}")) # this also accepts functions as source
+                if self.debug:
+                    print(f"Period measured to be: {period}")
+
+                if not period > 9e37:
+                    break
+            else:  # if period cannot be found
+                print(f"Error finding period of waveform on channel {trig_channel}. " +
+                    "Make sure one period is viewable on screen.")
+                raise Exception
 
         tbrange = period * n * 1.01
         self.do_command(f":TIMebase:RANGe {tbrange:.2E}")

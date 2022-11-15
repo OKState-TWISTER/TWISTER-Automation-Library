@@ -77,9 +77,13 @@ class WaveformGenerator:
 
     def load_waveform(self, filepath, samp_rate):
         """Loads data from file at <filepath> onto AWG"""
-        # TODO: might need to clear segment before sending new data "TRAC1:DEL:ALL"
         data = numpy.fromfile(filepath, dtype="H")
         length = len(data)  # length of samples
+
+        self.do_command("ABORt")
+        self.do_command("TRAC1:DEL:ALL")
+        if self.debug:
+            print(f"Cleared all segments from trace 1 memory")
 
         # Set output DAC sample rate
         self.do_command(f":FREQuency:RASTer {samp_rate}")
@@ -87,10 +91,12 @@ class WaveformGenerator:
             print(f"Set AWG sample frequency to {self.do_query(':FREQuency:RASTer?')}")
 
         self.do_command(f":TRACe1:DEFine 1,{length}")
+        if self.debug:
+            print(f"Defined segment 1 of length {length} on trace 1")
         self.do_command_ieee_block(":TRACe1:DATA 1,0,", data)
 
         if self.debug:
-            print(f"Trace 1 segment, length: {self.do_query(':TRACe1::CATalog?')}")
+            print(f"Trace 1 segment, length: {self.do_query(':TRACe1:CATalog?')}")
 
         # enable waveform generation
         self.do_command(":INIT:IMM")
