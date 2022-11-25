@@ -19,8 +19,7 @@ import twister_api.signalgen_interface as psgi
 ## Util Functions
 
 
-# TODO: add averaging
-def peak_phase(psg_to_adjust=1, diff_step=pi/18, max_variance=1e-3, debug=False):
+def peak_phase(psg_to_adjust=1, diff_step=pi/18, max_variance=1e-2, debug=False):
     """Automatically adjusts the phase on one of the local oscillators until the received signal is maximized.
 
     diff_step must be greater than 1/4 the expected period.
@@ -35,7 +34,7 @@ def peak_phase(psg_to_adjust=1, diff_step=pi/18, max_variance=1e-3, debug=False)
         raise IndexError("Valid indices for Analog Signal Generator device: [1, 2]")
 
     diff_step = diff_step*180/pi
-    max_attempts = 5
+    max_attempts = 7
 
     
     ### scope
@@ -54,31 +53,40 @@ def peak_phase(psg_to_adjust=1, diff_step=pi/18, max_variance=1e-3, debug=False)
         psg.set_phase_reference()
         p11 = float(scope.do_query(':MEASure:VPP? CHAN1'))
         p12 = float(scope.do_query(':MEASure:VPP? CHAN1'))
+        if debug:
+            print(f"Measured vpp {p11}, {p12} at x1")
+        if p11 > 9e37 or p12 > 9e37:
+            scope.do_command(":AUToscale:VERTical CHANnel1")
+            continue
         if abs(p11 - p12) > max_variance:  # if measurement was greatly affected by noise, retry
             continue
         p1 = (p11 + p12) / 2
-        if debug:
-            print(f"Measured vpp {p1} at x1")
 
         x2 = diff_step
         psg.set_phase(x2)
         p21 = float(scope.do_query(':MEASure:VPP? CHAN1'))
         p22 = float(scope.do_query(':MEASure:VPP? CHAN1'))
+        if debug:
+            print(f"Measured vpp {p21}, {p22} at x2")
+        if p21 > 9e37 or p22 > 9e37:
+            scope.do_command(":AUToscale:VERTical CHANnel1")
+            continue
         if abs(p21 - p22) > max_variance:  # if measurement was greatly affected by noise, retry
             continue
         p2 = (p21 + p22) / 2
-        if debug:
-            print(f"Measured vpp {p2} at x2")
 
         x3 = 2*diff_step
         psg.set_phase(x3)
         p31 = float(scope.do_query(':MEASure:VPP? CHAN1'))
         p32 = float(scope.do_query(':MEASure:VPP? CHAN1'))
+        if debug:
+            print(f"Measured vpp {p31}, {p32} at x3")
+        if p31 > 9e37 or p32 > 9e37:
+            scope.do_command(":AUToscale:VERTical CHANnel1")
+            continue
         if abs(p31 - p32) > max_variance:  # if measurement was greatly affected by noise, retry
             continue
         p3 = (p31 + p32) / 2
-        if debug:
-            print(f"Measured vpp {p3} at x3")
 
         if 9.99999e37 in [p1, p2, p3]:
             print("Error measuring peak, measured signal saturated (adjust channel 1 scale)")
@@ -89,14 +97,22 @@ def peak_phase(psg_to_adjust=1, diff_step=pi/18, max_variance=1e-3, debug=False)
         m2 = (p2*x2+p3*x3)/(p2+p3)
 
         psg.set_phase(m1)
-        pm1 = float(scope.do_query(':MEASure:VPP? CHAN1'))
+        pm11 = float(scope.do_query(':MEASure:VPP? CHAN1'))
+        pm12 = float(scope.do_query(':MEASure:VPP? CHAN1'))
         if debug:
-            print(f"Measured vpp {pm1} at m1")
+            print(f"Measured vpp {pm11}, {pm12} at m1")
+        if abs(pm11 - pm12) > max_variance:  # if measurement was greatly affected by noise, retry
+            continue
+        pm1 = (pm11 + pm12) / 2
 
         psg.set_phase(m2)
-        pm2 = float(scope.do_query(':MEASure:VPP? CHAN1'))
+        pm21 = float(scope.do_query(':MEASure:VPP? CHAN1'))
+        pm22 = float(scope.do_query(':MEASure:VPP? CHAN1'))
         if debug:
-            print(f"Measured vpp {pm2} at m2")
+            print(f"Measured vpp {pm21}, {pm22} at m2")
+        if abs(pm21 - pm22) > max_variance:  # if measurement was greatly affected by noise, retry
+            continue
+        pm2 = (pm21 + pm22) / 2
 
         if pm1 > pm2:
             x4 = m1
@@ -119,9 +135,13 @@ def peak_phase(psg_to_adjust=1, diff_step=pi/18, max_variance=1e-3, debug=False)
 
         m3 = (p4*x4+p5*x5)/(p4+p5)
         psg.set_phase(m3)
-        pm3 = float(scope.do_query(':MEASure:VPP? CHAN1'))
+        pm31 = float(scope.do_query(':MEASure:VPP? CHAN1'))
+        pm32 = float(scope.do_query(':MEASure:VPP? CHAN1'))
         if debug:
-            print(f"Measured vpp {pm3} at m3")
+            print(f"Measured vpp {pm31}, {pm32} at m3")
+        if abs(pm31 - pm32) > max_variance:  # if measurement was greatly affected by noise, retry
+            continue
+        pm3 = (pm31 + pm32) / 2
 
         if pm3 > p4 and pm3 > p5:
             phi = m3
@@ -135,4 +155,3 @@ def peak_phase(psg_to_adjust=1, diff_step=pi/18, max_variance=1e-3, debug=False)
     else:  # too many retries
         print("Error: Cannot automatically adjust LO phase to peak received signal.\n"
         + "Noise in measurements exceeded max_variance. Check signal or increase max_variance and try again")
-
