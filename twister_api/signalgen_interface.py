@@ -10,7 +10,7 @@ import math
 
 import pyvisa
 
-import waveformgen_interface
+import twister_api.waveformgen_interface as waveformgen_interface
 
 
 # Module level variables

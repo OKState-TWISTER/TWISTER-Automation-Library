@@ -13,7 +13,7 @@ from contextlib import contextmanager
 import numpy
 import pyvisa
 
-import signalgen_interface
+import twister_api.signalgen_interface as signalgen_interface
 
 
 # Module level variable
