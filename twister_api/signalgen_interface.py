@@ -30,30 +30,38 @@ class SignalGenerator:
                     visa_address = "TCPIP0::10.10.10.21::inst0::INSTR"
                     self.name = "psg1"
                     global instance1
+                    if instance1 is not None:
+                        raise Exception("An instance of PSG 1 has already been created")
                     instance1 = self
                 elif device_no == 2:
                     visa_address = "TCPIP0::10.10.10.22::inst0::INSTR"
                     self.name = "psg2"
                     global instance2
+                    if instance2 is not None:
+                        raise Exception("An instance of PSG 2 has already been created")
                     instance2 = self
                 else:
                     raise ValueError("Valid device_no: 1, 2")
 
         rm = pyvisa.ResourceManager(visa_library)
-        try:
-            pyvisa.resources.Resource: self.visa  # type hinting
-            self.visa = rm.open_resource(visa_address)
-        except pyvisa.errors.VisaIOError as e:
-            print(f"Error connecting to device string '{visa_address}' ({self.name}). Is the device connected?")
-            raise e
+
+        retry = 1  # PSGs are reluctant to respond the first time after beign powered on
+        while True:
+            try:
+                pyvisa.resources.Resource: self.visa  # type hinting
+                self.visa = rm.open_resource(visa_address)
+            except pyvisa.errors.VisaIOError as e:
+                if retry:
+                    retry -= 1
+                    continue
+                else:
+                    print(f"Error connecting to device string '{visa_address}' ({self.name}). Is the device connected?")
+                    raise e
 
 
     def shutdown(self):
         self.visa.close()
 
-
-    #TODO: add functions to enable and disable RF output
-    #TODO: find a way to check for awg output state before disabling LO to protect CCU
 
     def output_enabled(self) -> bool:
         """Returns True if PSG output is enabled"""
