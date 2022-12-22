@@ -23,7 +23,7 @@ def save_waveform(waveform, samp_rate, filepath):
     sample_rate = int(samp_rate).to_bytes(8, 'big')
     num_samples = len(waveform).to_bytes(8, 'big')
 
-    for dtype in ('B', 'I', 'f'):
+    for dtype in ('b', 'h', 'f'):
         try:
             data = array(dtype, waveform).tobytes()
             break
