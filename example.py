@@ -31,7 +31,7 @@ psg2 = SignalGenerator(visa_address="TCPIP0::10.10.10.11::inst0::INSTR", debug=T
 
 
 
-The outputs of the various instruments are controlled using context managers.
+The physical outputs of the various instruments are controlled using python context managers (see: https://book.pythontips.com/en/latest/context_managers.html).
 Their outputs will be disabled automatically when the program exits the scope of the conext manager
 
 Ex:
@@ -46,7 +46,7 @@ print("PSG outputs are disabled")
 
 
 
-To protect the VDI modules, the LO signal must be enabled before the AWG output can be activated.
+To protect the VDI modules, the LO signal (originating from a PSG) must be enabled before the AWG output can be activated.
 If any PSG objects are initialzed, the library will throw an error if you try to enable the AWG when any PSG output is off.
 example of improper order:
 
@@ -90,10 +90,12 @@ with psg1.enable_output(), psg2.enable_output(), awg.enable_output():
     awg.load_waveform(filepath, samplerate)
 
     # Specify the number of waveform segments (trigger signals) to capture (ex: 10)
+    # The scope captures whatever is on screen, so this adjusts the view of the scope
     scope.view_n_segments(10)
 
     # Align the phase of the incident wave and LO signal at the CCD
-    # This is currently unstable and may do more harm than good
+    # This is accomplished by adjusting the phases of the two PSGs relative to each other.
+    # This function is currently unstable and may do more harm than good
     twister_utils.peak_phase()
 
     # Capture signal on scope channel 1
